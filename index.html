@@ -110,6 +110,14 @@
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--accent); color:#fff; padding: 10px 18px; border-radius: 999px; font-family:-apple-system,system-ui,sans-serif; font-size:13px; opacity:0; transition: all .25s; z-index:60; }
   .toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
   .loading { text-align:center; padding: 60px 20px; font-family:-apple-system,system-ui,sans-serif; color: var(--ink-soft); }
+  .completed-wrap { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .completed-bar { width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family:-apple-system,system-ui,sans-serif; font-size: 13px; color: var(--ink-soft); padding: 8px 4px; border-radius: 8px; }
+  .completed-bar:hover { background: var(--card); color: var(--ink); }
+  .completed-list { margin-top: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px; }
+  .citem { display: flex; align-items: center; gap: 10px; padding: 7px 2px; border-bottom: 1px dashed var(--line); font-family:-apple-system,system-ui,sans-serif; font-size: 13px; }
+  .citem:last-child { border-bottom: none; }
+  .citem-id { font-size: 11px; color: var(--ink-soft); font-weight: 700; flex: none; }
+  .citem-text { flex: 1; color: var(--done); text-decoration: line-through; word-break: break-word; }
 </style>
 </head>
 <body>
@@ -127,7 +135,7 @@
 
   let sb = null;
   let notes = [];
-  let ui = { mode:null };
+  let ui = { mode:null, showCompleted:false };
   let session = null;
 
   // ---- wait for the Supabase library, then boot ----
@@ -221,14 +229,37 @@
         <span class="count">${active} active · ${done} done</span>
         <div class="spacer"></div>
         <span class="sync"><span class="dot-sync ok" id="dotSync"></span><span id="syncTxt">Saved</span></span>
+        <button class="btn mini" id="refreshBtn" title="Refresh from server">↻ Refresh</button>
         <button class="btn mini" id="logoutBtn">Sign out</button>
       </div></header>
       <div class="wrap"><div class="board">
         ${renderCol('W','Work')}
         ${renderCol('P','Personal')}
-      </div></div>`;
+      </div>
+      ${renderCompleted()}
+      </div>`;
+    $('#refreshBtn').onclick = ()=>{ setSync('busy'); loadAndRender(); };
     $('#logoutBtn').onclick = logout;
     wire();
+  }
+
+  function renderCompleted(){
+    const doneItems = notes.filter(n=>n.status==='done');
+    if(!doneItems.length) return '';
+    const open = ui.showCompleted;
+    return `<div class="completed-wrap">
+      <button class="completed-bar" data-act="toggleCompleted">
+        <span>${open?'▾':'▸'} Completed (${doneItems.length})</span>
+      </button>
+      ${open ? `<div class="completed-list">
+        ${doneItems.sort((a,b)=> a.item_id<b.item_id?-1:1).map(n=>`
+          <div class="citem">
+            <span class="citem-id">${n.item_id}</span>
+            <span class="citem-text">${esc(n.text)}</span>
+            <button class="ic" data-act="toggle" data-id="${n.id}" title="Reopen">↺</button>
+          </div>`).join('')}
+      </div>` : ''}
+    </div>`;
   }
 
   function renderCol(cat, name){
@@ -249,8 +280,10 @@
   }
 
   function renderSub(cat, sub){
-    let items = notes.filter(n=>n.cat===cat && n.sub===sub).sort((a,b)=> (a.status===b.status)?0:(a.status==='done'?1:-1));
+    let items = notes.filter(n=>n.cat===cat && n.sub===sub && n.status==='open');
     const adding = (ui.mode==='add' && ui.cat===cat && ui.sub===sub);
+    // hide a sub-project card entirely if it has no open items and we're not adding to it
+    if(items.length===0 && !adding) return '';
     return `<div class="sub">
       <div class="sub-title">${esc(sub)}</div>
       ${items.map(renderItem).join('')}
@@ -294,14 +327,15 @@
           case 'addSave': saveAdd(cat,sub); break;
           case 'addSubStart': ui={mode:'addsub',cat}; render(); break;
           case 'addSubSave': saveAddSub(cat); break;
-          case 'cancel': ui={mode:null}; render(); break;
+          case 'toggleCompleted': ui.showCompleted = !ui.showCompleted; render(); break;
+          case 'cancel': ui={mode:null, showCompleted:ui.showCompleted}; render(); break;
         }
       };
     });
-    const ei=$('#editInput'); if(ei){ ei.focus(); ei.setSelectionRange(ei.value.length,ei.value.length); ei.onkeydown=e=>{ if(e.key==='Enter')saveEdit(ui.id); if(e.key==='Escape'){ui={mode:null};render();} }; }
-    const ai=$('#addInput'); if(ai){ ai.focus(); ai.onkeydown=e=>{ if(e.key==='Enter')saveAdd(ui.cat,ui.sub); if(e.key==='Escape'){ui={mode:null};render();} }; }
-    const sn=$('#subNameInput'); if(sn){ sn.focus(); sn.onkeydown=e=>{ if(e.key==='Enter')$('#subItemInput').focus(); if(e.key==='Escape'){ui={mode:null};render();} }; }
-    const si=$('#subItemInput'); if(si){ si.onkeydown=e=>{ if(e.key==='Enter')saveAddSub(ui.cat); if(e.key==='Escape'){ui={mode:null};render();} }; }
+    const ei=$('#editInput'); if(ei){ ei.focus(); ei.setSelectionRange(ei.value.length,ei.value.length); ei.onkeydown=e=>{ if(e.key==='Enter')saveEdit(ui.id); if(e.key==='Escape'){ui={mode:null, showCompleted:ui.showCompleted};render();} }; }
+    const ai=$('#addInput'); if(ai){ ai.focus(); ai.onkeydown=e=>{ if(e.key==='Enter')saveAdd(ui.cat,ui.sub); if(e.key==='Escape'){ui={mode:null, showCompleted:ui.showCompleted};render();} }; }
+    const sn=$('#subNameInput'); if(sn){ sn.focus(); sn.onkeydown=e=>{ if(e.key==='Enter')$('#subItemInput').focus(); if(e.key==='Escape'){ui={mode:null, showCompleted:ui.showCompleted};render();} }; }
+    const si=$('#subItemInput'); if(si){ si.onkeydown=e=>{ if(e.key==='Enter')saveAddSub(ui.cat); if(e.key==='Escape'){ui={mode:null, showCompleted:ui.showCompleted};render();} }; }
   }
 
   // ---- ACTIONS (each writes to Supabase, then reflects) ----
@@ -316,23 +350,23 @@
   async function saveEdit(id){
     const n = notes.find(x=>x.id===id); if(!n) return;
     const v = $('#editInput')? $('#editInput').value.trim() : '';
-    if(v==='' || v===n.text){ ui={mode:null}; render(); return; }
-    n.text=v; ui={mode:null}; render(); setSync('busy');
+    if(v==='' || v===n.text){ ui={mode:null, showCompleted:ui.showCompleted}; render(); return; }
+    n.text=v; ui={mode:null, showCompleted:ui.showCompleted}; render(); setSync('busy');
     const { error } = await sb.from('notes').update({ text:v }).eq('id', id);
     if(error){ setSync('err'); toast('Save failed — reloading'); return loadAndRender(); }
     setSync('ok');
   }
   async function delItem(id){
-    notes = notes.filter(x=>x.id!==id); ui={mode:null}; render(); setSync('busy');
+    notes = notes.filter(x=>x.id!==id); ui={mode:null, showCompleted:ui.showCompleted}; render(); setSync('busy');
     const { error } = await sb.from('notes').delete().eq('id', id);
     if(error){ setSync('err'); toast('Delete failed — reloading'); return loadAndRender(); }
     setSync('ok');
   }
   async function saveAdd(cat, sub){
     const v = $('#addInput')? $('#addInput').value.trim() : '';
-    if(v===''){ ui={mode:null}; render(); return; }
+    if(v===''){ ui={mode:null, showCompleted:ui.showCompleted}; render(); return; }
     const item_id = nextId(cat, sub);
-    ui={mode:null}; setSync('busy');
+    ui={mode:null, showCompleted:ui.showCompleted}; setSync('busy');
     const row = { item_id, cat, sub, text:v, status:'open', tag:'', owner: session.user.id };
     const { data, error } = await sb.from('notes').insert(row).select().single();
     if(error){ setSync('err'); toast('Add failed — reloading'); return loadAndRender(); }
@@ -341,10 +375,10 @@
   async function saveAddSub(cat){
     const name = $('#subNameInput')? $('#subNameInput').value.trim() : '';
     const v = $('#subItemInput')? $('#subItemInput').value.trim() : '';
-    if(name===''){ ui={mode:null}; render(); return; }
+    if(name===''){ ui={mode:null, showCompleted:ui.showCompleted}; render(); return; }
     if(v===''){ return; }
     const item_id = nextId(cat, name);
-    ui={mode:null}; setSync('busy');
+    ui={mode:null, showCompleted:ui.showCompleted}; setSync('busy');
     const row = { item_id, cat, sub:name, text:v, status:'open', tag:'', owner: session.user.id };
     const { data, error } = await sb.from('notes').insert(row).select().single();
     if(error){ setSync('err'); toast('Add failed — reloading'); return loadAndRender(); }
