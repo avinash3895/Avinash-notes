@@ -190,6 +190,14 @@ def write_para(para, numbering):
         ppr.append(el("a:buNone"))
     p.append(ppr)
     for run in runs:
+        if run.get("field") == "slidenum":
+            fld = el("a:fld", {"id": "{B6F15528-21DE-4FAA-801E-634DDDAF4B2B}", "type": "slidenum"})
+            fld.append(run_props(run))
+            t = el("a:t")
+            t.text = "\u2039#\u203a"
+            fld.append(t)
+            p.append(fld)
+            continue
         text = run.get("text", "")
         if text == "":
             continue
@@ -775,8 +783,20 @@ def _totals_as_line(bar_chart, ser, totals, font):
 
 
 # ------------------------------------------------------------------- slides
+def _empty_placeholder(e):
+    if not e.get("placeholder") or not e.get("text"):
+        return False
+    for p in e["text"].get("paras") or []:
+        for r in p.get("runs") or []:
+            if r.get("text") or r.get("field"):
+                return False
+    return True
+
+
 def add_element(shapes, e):
     t = e.get("type")
+    if _empty_placeholder(e):
+        return None  # PowerPoint would only show "Click to add..." prompts
     if t == "shape":
         return add_shape(shapes, e)
     if t == "line":
