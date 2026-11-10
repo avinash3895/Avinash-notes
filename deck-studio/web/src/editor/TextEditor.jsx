@@ -81,7 +81,10 @@ export default function TextEditor({ el, body, boxStyle, ctx }) {
   }, []);
 
   // changes from outside (ribbon formatting, undo): redraw and keep the caret
+  const propParas = useRef(body.paras);
   useLayoutEffect(() => {
+    if (body.paras === propParas.current) return;
+    propParas.current = body.paras;
     if (body.paras !== parasRef.current) {
       parasRef.current = body.paras;
       render();
@@ -89,6 +92,15 @@ export default function TextEditor({ el, body, boxStyle, ctx }) {
       bumpTick();
     }
   });
+
+  // React's onBeforeInput is not the native event, so listen directly
+  const handlerRef = useRef(null);
+  useEffect(() => {
+    const node = ref.current;
+    const fn = (e) => handlerRef.current(e);
+    node.addEventListener('beforeinput', fn);
+    return () => node.removeEventListener('beforeinput', fn);
+  }, []);
 
   useEffect(() => {
     const onSel = () => {
@@ -167,6 +179,8 @@ export default function TextEditor({ el, body, boxStyle, ctx }) {
     if (t === 'historyUndo') return undo();
     if (t === 'historyRedo') return redo();
   };
+
+  handlerRef.current = onBeforeInput;
 
   const onCompositionStart = () => { composing.current = range(); };
   const onCompositionEnd = (e) => {
@@ -330,7 +344,6 @@ export default function TextEditor({ el, body, boxStyle, ctx }) {
         contentEditable
         suppressContentEditableWarning
         spellCheck
-        onBeforeInput={(e) => onBeforeInput(e.nativeEvent)}
         onCompositionStart={onCompositionStart}
         onCompositionEnd={(e) => onCompositionEnd(e.nativeEvent)}
         onPaste={onPaste}

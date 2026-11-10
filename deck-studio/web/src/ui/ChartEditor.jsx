@@ -44,8 +44,10 @@ export default function ChartEditor({ name }) {
       broadcast({ type: 'chart-code', name });
       setMeta((m) => ({ ...m, hasTesting: true }));
       preview();
+      return true;
     } catch (e) {
       setStatus({ ok: false, text: e.message });
+      return false;
     }
   };
   saveRef.current = save;
@@ -75,7 +77,10 @@ export default function ChartEditor({ name }) {
 
   const promote = async (backup) => {
     setConfirm(false);
-    if (dirty) await save();
+    if (dirty && !(await save())) {
+      setStatus({ ok: false, text: 'Not sent: fix the error above first, then try again.' });
+      return;
+    }
     try {
       const r = await post('/api/charts/promote', { name, backup });
       setStatus({ ok: true, text: `Sent to production${r.backup ? `. Backup: ${r.backup}` : ''}. Every deck now uses this version.` });

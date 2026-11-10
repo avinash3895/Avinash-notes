@@ -191,11 +191,12 @@ function mix(hex, amount, toWhite) {
   return '#' + c.map((v) => Math.round(v + (t - v) * amount).toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
+const NO_COLORS = [];
 const STANDARD = ['#C00000', '#FF0000', '#FFC000', '#FFFF00', '#92D050', '#00B050', '#00B0F0', '#0070C0', '#002060', '#7030A0'];
 
 export function ColorGrid({ onPick, allowNone, noneLabel = 'No Fill', current, onClose }) {
   const theme = useStore((s) => s.deck.theme);
-  const recent = useStore((s) => s.ui.recentColors || []);
+  const recent = useStore((s) => s.ui.recentColors) || NO_COLORS;
   const keys = ['lt1', 'dk1', 'lt2', 'dk2', 'accent1', 'accent2', 'accent3', 'accent4', 'accent5', 'accent6'];
   const base = keys.map((k) => theme.colors[k]);
   const rows = [base];

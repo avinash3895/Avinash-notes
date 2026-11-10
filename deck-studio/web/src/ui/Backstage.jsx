@@ -39,7 +39,7 @@ function Recent({ compact }) {
         <div key={r.path} className={`recent-item${r.exists ? '' : ' missing'}`} onClick={() => r.exists && openDeckPath(r.path)} title={r.path}>
           <span className="ri-icon"><svg viewBox="0 0 32 32" width="26" height="26"><rect x="3" y="5" width="26" height="22" rx="3" fill="#00778B" /><rect x="8" y="16" width="4" height="7" fill="#75E4E3" /><rect x="14" y="12" width="4" height="11" fill="#fff" /><rect x="20" y="9" width="4" height="14" fill="#FFD200" /></svg></span>
           <span className="ri-text">
-            <span className="ri-name">{(r.name || r.path.split(/[\\/]/).pop()).replace(/\.dstudio$/i, '')}</span>
+            <span className="ri-name">{r.path.split(/[\\/]/).pop().replace(/\.dstudio$/i, '')}</span>
             <span className="ri-path">{r.exists ? r.folder : 'File not found'}</span>
           </span>
           <span className="ri-date">{r.modified ? new Date(r.modified * 1000).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : ''}</span>

@@ -79,7 +79,7 @@ svg { flex-shrink: 0; }
 .rtab-action:hover { background: var(--hover); }
 .rtab-action.share { background: var(--accent); border-color: var(--accent); color: #fff; }
 .rtab-action.share:hover { background: #00687A; }
-.ribbon-body { height: 100px; display: flex; align-items: stretch; margin: 0 6px 6px; padding: 4px 2px 0; background: #fff; border-radius: 8px; box-shadow: 0 0 2px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.10); overflow-x: auto; overflow-y: hidden; }
+.ribbon-body { height: 106px; display: flex; align-items: stretch; margin: 0 6px 6px; padding: 4px 2px 0; background: #fff; border-radius: 8px; box-shadow: 0 0 2px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.10); overflow-x: auto; overflow-y: hidden; }
 .ribbon-body::-webkit-scrollbar { height: 6px; }
 .rgroup { display: flex; flex-direction: column; padding: 0 6px; position: relative; flex: 0 0 auto; }
 .rgroup:not(:last-child)::after { content: ''; position: absolute; right: 0; top: 4px; bottom: 6px; width: 1px; background: var(--line); }
@@ -106,7 +106,7 @@ svg { flex-shrink: 0; }
 .bigbtn.split:hover { border-color: var(--line-2); }
 .bigbtn.split .bb-main:hover, .bigbtn.split .bb-drop:hover, .bigbtn.split.open .bb-drop { background: var(--hover); }
 
-.smallbtn { height: 26px; display: inline-flex; align-items: center; gap: 5px; padding: 0 5px; border: 1px solid transparent; border-radius: 4px; background: none; font-size: 12px; color: var(--ink); white-space: nowrap; }
+.smallbtn { height: 25px; display: inline-flex; align-items: center; gap: 5px; padding: 0 5px; border: 1px solid transparent; border-radius: 4px; background: none; font-size: 12px; color: var(--ink); white-space: nowrap; }
 .smallbtn:hover:not(:disabled), .smallbtn.open { background: var(--hover); }
 .smallbtn:active:not(:disabled) { background: var(--press); }
 .smallbtn.active { background: var(--accent-tint); border-color: var(--accent-tint-2); }
@@ -305,7 +305,7 @@ svg { flex-shrink: 0; }
 .geom { position: absolute; left: 0; top: 0; overflow: visible; }
 .tb-wrap { position: absolute; inset: 0; }
 .tb { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: visible; overflow-wrap: break-word; word-break: normal; tab-size: 8; }
-.tb-in { outline: none; min-height: 1px; cursor: text; }
+.tb-in { outline: none; min-height: 1px; cursor: text; flex: 0 0 auto; }
 .slide.thumb .tb-in, .slide.show .tb-in { cursor: default; }
 .el:not(.editing) .tb-in { cursor: inherit; }
 .tb-in.editor { user-select: text; cursor: text; caret-color: #000; }
