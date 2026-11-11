@@ -23,6 +23,10 @@ class ExcelError(Exception):
 def _open(path):
     if not path:
         raise ExcelError("No Excel file chosen.")
+    if not os.path.isfile(path) and os.environ.get("DECKSTUDIO_DEMO") == "1" \
+            and re.match(r"Plan Data 0[12]\.xlsx$", os.path.basename(path)):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        write_sample_workbooks(os.path.dirname(path))
     if not os.path.isfile(path):
         raise ExcelError("File not found: %s" % path)
     stamp = os.path.getmtime(path)

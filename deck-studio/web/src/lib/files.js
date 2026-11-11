@@ -9,6 +9,27 @@ let applyingRemote = false;
 let autosaveTimer = null;
 let broadcastTimer = null;
 
+// ---- online demo: files go to/from the browser instead of the laptop's folders
+export function isDemo() {
+  return !!getState().settings.demo;
+}
+
+async function download(kind) {
+  const st = getState();
+  const res = await fetch('/api/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deck: st.deck, kind }) });
+  if (!res.ok) {
+    let msg = `Download failed (${res.status})`;
+    try { msg = (await res.json()).error || msg; } catch (e) { /* ignore */ }
+    throw new Error(msg);
+  }
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${st.deck.name}.${kind === 'deck' ? 'dstudio' : 'pptx'}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
 export function deckFileName(path) {
   if (!path) return '';
   return path.split(/[\\/]/).pop();
@@ -72,6 +93,16 @@ export async function openDeckPath(path) {
 
 export async function openDeckCmd() {
   if (!(await confirmDiscard())) return;
+  if (isDemo()) {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.dstudio,application/json';
+    input.onchange = async () => {
+      const f = input.files[0]; if (!f) return;
+      try { const deck = JSON.parse(await f.text()); if (!deck.slides) throw new Error('Not a Deck Studio file.'); loadDeck(migrate(deck), null); toast(`Opened ${f.name}`); } catch (e) { toast(e.message, { kind: 'error' }); }
+    };
+    input.click();
+    return;
+  }
   const path = await chooseFile('open', 'deck', { title: 'Open deck', initialDir: getState().settings.autosaveFolder });
   if (path) openDeckPath(path);
 }
@@ -86,6 +117,9 @@ function migrate(deck) {
 
 export async function saveDeck() {
   const st = getState();
+  if (isDemo()) {
+    try { await download('deck'); setState({ dirty: false, saveState: 'saved', lastSaved: Date.now() }); toast('Deck downloaded (.dstudio). Open it again with File > Open.', { kind: 'success' }); return true; } catch (e) { toast(e.message, { kind: 'error' }); return false; }
+  }
   if (!st.path) return saveDeckAs();
   setState({ saveState: 'saving' });
   try {
@@ -100,6 +134,7 @@ export async function saveDeck() {
 }
 
 export async function saveDeckAs() {
+  if (isDemo()) return saveDeck();
   const st = getState();
   const path = await chooseFile('save', 'deck', {
     title: 'Save deck as', defaultName: `${st.deck.name}.dstudio`, initialDir: folderOf(st.path) || st.settings.autosaveFolder,
@@ -193,6 +228,12 @@ export async function saveSettings(changes) {
 // ----------------------------------------------------------------- export
 export async function exportPptx() {
   const st = getState();
+  if (isDemo()) {
+    const id = toast('Building the PowerPoint file...', { sticky: true });
+    try { await download('pptx'); toast('PowerPoint file downloaded. Open it from your Downloads folder.', { kind: 'success' }); } catch (e) { toast(e.message, { kind: 'error' }); }
+    setUI((u) => ({ toasts: u.toasts.filter((t) => t.id !== id) }));
+    return;
+  }
   const last = st.settings.lastExport;
   const path = await chooseFile('save', 'pptx', {
     title: 'Export to PowerPoint', defaultName: `${st.deck.name}.pptx`,

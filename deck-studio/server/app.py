@@ -31,7 +31,7 @@ import chartlib  # noqa: E402
 import excel  # noqa: E402
 import export_pptx  # noqa: E402
 import platform_win as plat  # noqa: E402
-from paths import (IS_WINDOWS, SAMPLES, WEB_DIST, add_recent, documents_dir,  # noqa: E402
+from paths import (DEMO, IS_WINDOWS, SAMPLES, WEB_DIST, add_recent, documents_dir,  # noqa: E402
                    load_settings, save_settings)
 
 VERSION = "1.0.0"
@@ -81,6 +81,7 @@ def r_settings_get(_):
     s = load_settings()
     s["documents"] = documents_dir()
     s["windows"] = IS_WINDOWS
+    s["demo"] = DEMO
     return s
 
 
@@ -428,6 +429,30 @@ POST_ROUTES = {
 }
 
 
+# The online demo never runs code sent by a visitor: chart code is read-only there,
+# and nothing touches the server's own files or programs.
+DEMO_BLOCKED = {"/api/charts/save", "/api/charts/new", "/api/charts/promote", "/api/charts/discard",
+                "/api/charts/folder", "/api/open-path", "/api/reveal", "/api/share", "/api/powerpoint/update",
+                "/api/settings", "/api/deck/save", "/api/deck/rename", "/api/export", "/api/dialog",
+                "/api/deck/open", "/api/deck/autosave", "/api/deck/next-version", "/api/recent/remove",
+                "/api/fs/exists", "/api/compare"}
+DEMO_EXCEL = {"/api/excel/inspect", "/api/excel/table", "/api/excel/value", "/api/excel/batch", "/api/links/check"}
+
+
+def demo_excel_ok(body):
+    """Online demo: Excel requests may only read the two sample workbooks."""
+    folder = os.path.realpath(os.path.join(documents_dir(), "Deck Studio", "Sample data"))
+    paths = [body.get("path")] + [r.get("path") for r in body.get("requests") or []] \
+        + [v.get("path") for v in (body.get("sources") or {}).values()]
+    for p in paths:
+        if p is None:
+            continue
+        real = os.path.realpath(str(p))
+        if os.path.dirname(real) != folder or not re.match(r"Plan Data 0[12]\.xlsx$", os.path.basename(real)):
+            return False
+    return True
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "DeckStudio/" + VERSION
 
@@ -455,6 +480,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802
         url = urllib.parse.urlparse(self.path)
+        if DEMO and url.path in ("/api/recent", "/api/powerpoint/status"):
+            return self._send(200, {"recent": [], "running": False, "files": [], "unavailable": "Not available in the online demo."})
         if url.path in GET_ROUTES:
             return self._api(GET_ROUTES[url.path], dict(urllib.parse.parse_qsl(url.query)))
         if url.path.startswith("/api/tmp/"):
@@ -476,10 +503,39 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(raw.decode("utf-8") or "{}")
         except ValueError:
             return self._send(400, {"error": "Bad request"})
+        if url.path == "/api/download":
+            return self._download(body)
         fn = POST_ROUTES.get(url.path)
+        if DEMO and url.path in DEMO_EXCEL and not demo_excel_ok(body):
+            return self._send(403, {"error": "The online demo can only read the two sample Excel files."})
+        if DEMO and url.path in DEMO_BLOCKED:
+            return self._send(403, {"error": "Editing chart code is switched off in the online demo. "
+                                             "Use the laptop version to change chart code."})
         if not fn:
             return self._send(404, {"error": "Unknown request"})
         return self._api(fn, body)
+
+    def _download(self, body):
+        """Send the export (or the deck file) back to the browser as a download."""
+        deck = body.get("deck") or {}
+        name = safe_name(deck.get("name"))
+        try:
+            if body.get("kind") == "deck":
+                data = json.dumps(deck, ensure_ascii=False).encode("utf-8")
+                fname, ctype = name + ".dstudio", "application/json"
+            else:
+                data = export_pptx.export_bytes(deck, export_template())
+                fname = name + ".pptx"
+                ctype = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        except Exception as exc:  # noqa: BLE001
+            traceback.print_exc()
+            return self._send(400, {"error": "%s: %s" % (type(exc).__name__, exc)})
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition", "attachment; filename*=UTF-8''%s" % urllib.parse.quote(fname))
+        self.end_headers()
+        self.wfile.write(data)
 
     def _static(self, path):
         rel = urllib.parse.unquote(path).lstrip("/") or "index.html"

@@ -9,6 +9,7 @@ import sys
 import threading
 
 IS_WINDOWS = sys.platform.startswith("win")
+DEMO = os.environ.get("DECKSTUDIO_DEMO") == "1"  # online demo (Vercel)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_DIST = os.path.join(ROOT, "web", "dist")
@@ -66,7 +67,7 @@ def documents_dir():
 
 
 DEFAULT_SETTINGS = {
-    "autosave": True,
+    "autosave": not DEMO,
     "autosaveFolder": os.path.join(documents_dir(), "Deck Studio"),
     "chartLibrary": os.path.join(desktop_dir(), "Deck Studio Charts"),
     "exportTemplate": "",

@@ -55,6 +55,7 @@ export default function TitleBar() {
         <SaveStatus />
       </div>
       <div className="tb-right">
+        {useStore((s) => s.settings.demo) && <span className="demo-badge" title="Online demo: Export and Save download files to your computer. Excel links use the two sample files. Update PowerPoint and Share need the laptop version.">Online demo</span>}
         {testing && <span className="testing-badge" title="Charts are drawn with testing code" onClick={() => setUI({ tab: 'data' })}><ITesting /> Testing mode</span>}
         <span className="brand">Deck Studio</span>
       </div>
