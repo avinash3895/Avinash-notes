@@ -1,0 +1,7 @@
+{
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "web/dist",
+  "functions": { "api/index.py": { "maxDuration": 60, "includeFiles": "server/**" } },
+  "rewrites": [{ "source": "/api/(.*)", "destination": "/api/index" }]
+}
